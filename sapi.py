@@ -84,16 +84,21 @@ def test_lfi(base_url, endpoint, payloads):
         data = {"filename":payload}
         response = requests.post(f"{base_url}/{endpoint}",json=data)
         if "root:x" in response.text or "hosts" in response.text:
-            print(f"{Fore.YELLOW}[!] Potential LFI with payload: {payload} at /{endpoint} parameter filename")
+            print(f"{Fore.RED}[!] Potential LFI with payload: {payload} at /{endpoint} in parameter filename")
+            print(f"{Fore.YELLOW}{response.text}")
         
 
 # RFI vulnerabilities with multiple payloads
 def test_rfi(base_url, endpoint, payload):
     data = {"imagelink":payload}
     response = requests.post(f"{base_url}/{endpoint}",json=data)
-    fetch_resp = requests.get(url=payload, timeout=2, verify=False).text
-    if response.status_code == 200 and fetch_resp in response.text:
-        print(f"{Fore.YELLOW}[!] Potential RFI with payload: {payload} at /{endpoint}")
+    # print(response.text)
+    if response.status_code == 200:
+        fetch_resp = requests.get(url=payload, timeout=2, verify=False).text
+        # print(response.text)
+        # print(fetch_resp)
+        if "Vulnerable to RFI" in response.text:
+            print(f"{Fore.RED}[!] Potential RFI with payload: {payload} at /{endpoint} in parameter imagelink")
 
 # SSTI vulnerabilities with multiple payloads
 def test_ssti(base_url, endpoint, payloads):
@@ -101,7 +106,7 @@ def test_ssti(base_url, endpoint, payloads):
         data = {"mathexp":payload}
         response = requests.post(f"{base_url}/{endpoint}",json=data)
         if "49" in response.text:  # Example check if 7*7 renders as 49
-            print(f"{Fore.YELLOW}[!] Potential SSTI with payload: {payload} at /{endpoint}")
+            print(f"{Fore.RED}[!] Potential SSTI with payload: {payload} at /{endpoint} in parameter mathexp")
             break
         
 
@@ -119,7 +124,7 @@ def test_hhi(base_url, endpoint):
         
         # Check if the injected host is reflected in the response
         if injected_host in response.text or response.headers.get('Location', '').find(injected_host) != -1:
-            print(f"{Fore.YELLOW}[!] Host Header Injection vulnerability detected at {url}")
+            print(f"{Fore.RED}[!] Host Header Injection vulnerability detected at {url}")
     except requests.RequestException as e:
         print(f"{Fore.RED}[-] Error testing Host Header Injection at {url}: {e}")
 
@@ -168,6 +173,7 @@ if __name__ == "__main__":
         base_url = sys.argv[sys.argv.index('--url') + 1]
         wordlist_file = sys.argv[sys.argv.index('--endpoints') + 1]
         lhost = sys.argv[sys.argv.index('--lhost') + 1]
+        #sqli = sys.argv[sys.argv.index('--sqli') + 1]
     except (ValueError, IndexError):
         print(f"{Fore.RED}Error: Missing required arguments. Use '--help' for usage instructions.")
         sys.exit(1)
