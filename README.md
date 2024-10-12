@@ -27,7 +27,6 @@ python sapi.py
 1. Fuzz API endpoints from a wordlist
 2. Detect security vulnerabilities, including:
 - Cross-Site Scripting (XSS)
-- SQL Injection (using SQLMap)
 - Local File Inclusion (LFI)
 - Remote File Inclusion (RFI)
 - Server-Side Template Injection (SSTI)

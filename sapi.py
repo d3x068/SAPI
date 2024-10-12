@@ -1,6 +1,8 @@
 import requests
 from colorama import Fore, Style, init
 import sys
+import subprocess
+import json
 
 # Initialize colorama
 init(autoreset=True)
@@ -40,7 +42,7 @@ def print_help():
     print(f"  --endpoints <file>            Specify the file containing the endpoints wordlist")
     print(f"  --help                        Show this help message and exit\n")
     print(f"{Fore.CYAN}Example:")
-    print(f"  python sapi.py --url http://127.0.0.1:5000 --lhost http://burp_collaborator.com --endpoints endpoints.txt\n")
+    print(f"  python sapi.py --url http://127.0.0.1:5000 --lhost http://burp_collaborator.com/server --endpoints endpoints.txt\n")
 
 # if an endpoint exists?
 def check_endpoint(base_url, endpoint):
@@ -69,6 +71,26 @@ def test_sqli(base_url, endpoint, payloads):
         response = requests.post(f"{base_url}/{endpoint}", data={'input': payload})
         if "error" not in response.text:
             print(f"{Fore.YELLOW}[!] Potential SQL Injection with payload: {payload} at /{endpoint}")
+
+def call_sqlmap(base_url,endpoint):
+    url = f"{base_url}/{endpoint}"
+
+    try:
+        print(f"{Fore.YELLOW}SQLMAP is running")
+        result = subprocess.run(
+            [
+                'python','C:/Users/user/d3x068/sqlmap-dev/sqlmap.py','-u',url,'--method=POST','--data={"username":"admin","password":"admin123"}','--batch'
+            ],
+            capture_output=True,
+            text=True
+        )
+
+        if "is vulnerable" in result.stdout :
+            print(f"{Fore.RED}[!] SQL Injection vulnerability detected by SQLMap at {url}")
+        else:
+            print(f"{Fore.YELLOW}[!] SQL is not detected")
+    except Exception as e:
+        print(f"error running : {e}")
 
 # XSS vulnerabilities with multiple payloads
 def test_xss(base_url, endpoint, payloads):
@@ -143,7 +165,7 @@ def fuzz_endpoints(base_url, wordlist_file):
     return valid_endpoints
 
 # Main function
-def scan_vulnerabilities(base_url, wordlist_file, lhost):
+def scan_vulnerabilities(base_url, wordlist_file, lhost,sqli):
 
     valid_endpoints = fuzz_endpoints(base_url, wordlist_file)
 
@@ -157,10 +179,12 @@ def scan_vulnerabilities(base_url, wordlist_file, lhost):
         print(f"\n{Fore.CYAN}[*] Testing vulnerabilities for /{endpoint}")
         test_xss(base_url, endpoint, xss_payloads)
         test_hhi(base_url,endpoint)
-        # test_sqli(base_url, endpoint, sqli_payloads)
         test_lfi(base_url, endpoint, lfi_payloads)
         test_rfi(base_url, endpoint, rfi_payloads)
         test_ssti(base_url, endpoint, ssti_payloads)
+        if (sqli):
+            call_sqlmap(base_url,endpoint)
+        # test_sqli(base_url, endpoint, sqli_payloads)
 
 if __name__ == "__main__":
     
@@ -173,9 +197,9 @@ if __name__ == "__main__":
         base_url = sys.argv[sys.argv.index('--url') + 1]
         wordlist_file = sys.argv[sys.argv.index('--endpoints') + 1]
         lhost = sys.argv[sys.argv.index('--lhost') + 1]
-        #sqli = sys.argv[sys.argv.index('--sqli') + 1]
+        sqli = sys.argv[sys.argv.index('--sqli')]
     except (ValueError, IndexError):
         print(f"{Fore.RED}Error: Missing required arguments. Use '--help' for usage instructions.")
         sys.exit(1)
 
-    scan_vulnerabilities(base_url, wordlist_file, lhost)
+    scan_vulnerabilities(base_url, wordlist_file, lhost, sqli)
