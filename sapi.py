@@ -40,9 +40,10 @@ def print_help():
     print(f"  --url <target_url>            Specify the target URL to scan")
     print(f"  --lhost <listening_host>      Specify the listening host to scan RFI")
     print(f"  --endpoints <file>            Specify the file containing the endpoints wordlist")
+    print(f"  --sqli <y/n>                  Enable SQL Injection test using sqlmap")
     print(f"  --help                        Show this help message and exit\n")
     print(f"{Fore.CYAN}Example:")
-    print(f"  python sapi.py --url http://127.0.0.1:5000 --lhost http://burp_collaborator.com/server --endpoints endpoints.txt\n")
+    print(f"  python sapi.py --url http://127.0.0.1:5000 --lhost http://burp_collaborator.com/server --endpoints endpoints.txt --sqli y\n")
 
 # if an endpoint exists?
 def check_endpoint(base_url, endpoint):
@@ -76,7 +77,7 @@ def call_sqlmap(base_url,endpoint):
     url = f"{base_url}/{endpoint}"
 
     try:
-        print(f"{Fore.YELLOW}SQLMAP is running")
+        print(f"{Fore.YELLOW}[*]SQLMAP is running")
         result = subprocess.run(
             [
                 'python','C:/Users/user/d3x068/sqlmap-dev/sqlmap.py','-u',url,'--method=POST','--data={"username":"admin","password":"admin123"}','--batch'
@@ -88,49 +89,69 @@ def call_sqlmap(base_url,endpoint):
         if "is vulnerable" in result.stdout :
             print(f"{Fore.RED}[!] SQL Injection vulnerability detected by SQLMap at {url}")
         else:
-            print(f"{Fore.YELLOW}[!] SQL is not detected")
+            print(f"{Fore.GREEN}[!] SQL is not detected")
     except Exception as e:
         print(f"error running : {e}")
 
 # XSS vulnerabilities with multiple payloads
 def test_xss(base_url, endpoint, payloads):
+    found = False
+    print(f"{Fore.YELLOW}[*] Scanning for XSS...")
     for payload in payloads:
         data = {"username":payload}
         response = requests.post(f"{base_url}/{endpoint}",json=data)
         if payload in response.text:
             print(f"{Fore.RED}[!] Potential XSS with payload: {payload} at /{endpoint} in parameter username")
+            found = True
+    if(not found):
+        print(f"{Fore.GREEN}[!] XSS is not detected.")
 
 # LFI vulnerabilities with multiple payloads
 def test_lfi(base_url, endpoint, payloads):
+    found = False
+    print(f"{Fore.YELLOW}[*] Scanning for LFI...")
     for payload in payloads:
         data = {"filename":payload}
         response = requests.post(f"{base_url}/{endpoint}",json=data)
         if "root:x" in response.text or "hosts" in response.text:
             print(f"{Fore.RED}[!] Potential LFI with payload: {payload} at /{endpoint} in parameter filename")
             print(f"{Fore.YELLOW}{response.text}")
+            found = True
+    if(not found):
+        print(f"{Fore.GREEN}[!] LFI is not detected.")
         
 
 # RFI vulnerabilities with multiple payloads
 def test_rfi(base_url, endpoint, payload):
+    found = False
     data = {"imagelink":payload}
     response = requests.post(f"{base_url}/{endpoint}",json=data)
+    found = False
+    print(f"{Fore.YELLOW}[*] Scanning for RFI...")
     # print(response.text)
     if response.status_code == 200:
         fetch_resp = requests.get(url=payload, timeout=2, verify=False).text
         # print(response.text)
         # print(fetch_resp)
         if "Vulnerable to RFI" in response.text:
-            print(f"{Fore.RED}[!] Potential RFI with payload: {payload} at /{endpoint} in parameter imagelink")
+            print(f"{Fore.RED}[!] Potential RFI with payload: {payload} at /{endpoint} in parameter imagelink. Please check your lhost.")
+            found = True
+    if(not found):
+        print(f"{Fore.GREEN}[!] RFI is not detected.")
 
 # SSTI vulnerabilities with multiple payloads
 def test_ssti(base_url, endpoint, payloads):
+    found = False
+    print(f"{Fore.YELLOW}[*] Scanning for SSTI...")
     for payload in payloads:
         data = {"mathexp":payload}
         response = requests.post(f"{base_url}/{endpoint}",json=data)
         if "49" in response.text:  # Example check if 7*7 renders as 49
             print(f"{Fore.RED}[!] Potential SSTI with payload: {payload} at /{endpoint} in parameter mathexp")
+            found = True
             break
-        
+    if(not found):
+        print(f"{Fore.GREEN}[!] SSTI is not detected.")   
 
 # host header injection vulnerabilities
 def test_hhi(base_url, endpoint):
@@ -138,6 +159,8 @@ def test_hhi(base_url, endpoint):
     # Injected host value
     # next : lets try to use burp collaborator
     injected_host = "evil.com"
+    found = False
+    print(f"{Fore.YELLOW}[*] Scanning for HHI...")
     
     try:
         # Make a request with the Host header manipulated
@@ -147,9 +170,11 @@ def test_hhi(base_url, endpoint):
         # Check if the injected host is reflected in the response
         if injected_host in response.text or response.headers.get('Location', '').find(injected_host) != -1:
             print(f"{Fore.RED}[!] Host Header Injection vulnerability detected at {url}")
+            found = True
     except requests.RequestException as e:
         print(f"{Fore.RED}[-] Error testing Host Header Injection at {url}: {e}")
-
+    if(not found):
+        print(f"{Fore.GREEN}[!] Host Header Injection is not detected.")
 
 # fuzz the endpoints
 def fuzz_endpoints(base_url, wordlist_file):
@@ -182,7 +207,7 @@ def scan_vulnerabilities(base_url, wordlist_file, lhost,sqli):
         test_lfi(base_url, endpoint, lfi_payloads)
         test_rfi(base_url, endpoint, rfi_payloads)
         test_ssti(base_url, endpoint, ssti_payloads)
-        if (sqli):
+        if (sqli == "y"):
             call_sqlmap(base_url,endpoint)
         # test_sqli(base_url, endpoint, sqli_payloads)
 
@@ -197,7 +222,7 @@ if __name__ == "__main__":
         base_url = sys.argv[sys.argv.index('--url') + 1]
         wordlist_file = sys.argv[sys.argv.index('--endpoints') + 1]
         lhost = sys.argv[sys.argv.index('--lhost') + 1]
-        sqli = sys.argv[sys.argv.index('--sqli')]
+        sqli = sys.argv[sys.argv.index('--sqli') + 1]
     except (ValueError, IndexError):
         print(f"{Fore.RED}Error: Missing required arguments. Use '--help' for usage instructions.")
         sys.exit(1)
