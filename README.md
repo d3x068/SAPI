@@ -1,6 +1,6 @@
 # SAPI - Scan API Vulnerability Scanner
 
-SAPI is a Python-based API vulnerability scanner designed to detect various security flaws, including XSS, SQL Injection (via SQLMap), Local/Remote File Inclusion, Server-Side Template Injection, and Host Header Injection. The app can fuzz API endpoints from a wordlist and perform POST requests with a JSON body to test vulnerabilities.
+SAPI is a Python-based API vulnerability scanner designed to detect various security flaws, including XSS, SQL Injection (via SQLMap), Local/Remote File Inclusion, Server-Side Template Injection, and Host Header Injection. The app can fuzz API endpoints from a wordlist and perform POST requests with a JSON body to test vulnerabilities. Used for fulfill the technical test.
 
 **Disclaimer**: This project created by d3x068 (Wildan Zaim Syaddad)
 
